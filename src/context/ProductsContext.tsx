@@ -1,15 +1,61 @@
-import { createContext } from 'solid-js';
-import { createStore } from 'solid-js/store';
-import { Product, SelectedProducts } from '../../types';
-interface ProductsStore {
-	products: Product[];
+import api from '../api';
+import { onMount } from 'solid-js';
+import { createContext, Component } from 'solid-js';
 
-	selectedProducts: SelectedProducts;
-	price: number;
-}
+import { createStore, Store } from 'solid-js/store';
+import {
+	Product,
+	ProductState,
+	ProductContext,
+	ProductActions,
+} from '../../types';
+import { useContext } from 'solid-js';
 
-const [state, setState] = createStore<ProductsStore>({
+const INITIAL_STATE: ProductState = {
 	products: [],
-	price: 0,
 	selectedProducts: { price: 0, products: [] },
-});
+};
+export const ProductsContext =
+	createContext<ProductContext>([
+		INITIAL_STATE,
+		{
+			setInitialProducts: () => undefined,
+			handleSelectedProducts: () => undefined,
+		},
+	]);
+
+const ProductsProvider: Component = ({ children }) => {
+	const [state, setState] = createStore<ProductState>({
+		...INITIAL_STATE,
+	});
+	const actions: ProductActions = {
+		handleSelectedProducts(product: Product) {
+			const actualPrice =
+				state.selectedProducts.price + product.price;
+			setState('selectedProducts', {
+				price: actualPrice,
+				products: [...state.selectedProducts.products, product],
+			});
+		},
+		async setInitialProducts() {
+			let response = [] as Product[];
+			const data = await api.list().then((res) => {
+				response = res;
+			});
+			return response;
+		},
+	};
+
+	console.log("Me encuentro acá<")
+	return (
+		<ProductsContext.Provider value={[state, actions]}>
+			{' '}
+			{children}
+		</ProductsContext.Provider>
+	);
+};
+
+export default ProductsProvider;
+
+export const useProducts = () =>
+	useContext(ProductsContext);
